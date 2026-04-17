@@ -6,6 +6,7 @@ import { fetchPokemon, calculateDamage, fetchLearnableMoves } from './services/a
 import { decodeTeam, encodeTeam } from './services/base64';
 import { getTypeColors } from './constants';
 import { TRAINERS } from './data/trainers';
+import { useGameStore } from './store/gameStore';
 
 export default function App() {
   const [battle, setBattle] = useState<BattleState>({
@@ -29,18 +30,25 @@ export default function App() {
   const [selectedBoxPokemon, setSelectedBoxPokemon] = useState<Pokemon | null>(null);
   const [learnableMoves, setLearnableMoves] = useState<Move[]>([]);
   const [infoTab, setInfoTab] = useState<'stats' | 'moves' | 'about'>('stats');
-  const [box, setBox] = useState<Pokemon[]>([]);
+  const box = useGameStore(state => state.box);
+  const setBox = useGameStore(state => state.setBox);
+  const filters = useGameStore(state => state.filters);
+  const setFilterType = useGameStore(state => state.setFilterType);
+  const setFilterFav = useGameStore(state => state.setFilterFav);
+  const setSortBy = useGameStore(state => state.setSortBy);
+  const battleState = useGameStore(state => state.battleState);
+  const setBattleState = useGameStore(state => state.setBattleState);
+  const setPlayerTeam = useGameStore(state => state.setPlayerTeam);
+  const rehydrated = useGameStore(state => state.rehydrated);
   const [importText, setImportText] = useState('');
-
-  // Box filters
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterFav, setFilterFav] = useState<boolean>(false);
-  const [sortBy, setSortBy] = useState<'level' | 'ivs' | 'id'>('id');
+  const [showSaveManager, setShowSaveManager] = useState(false);
+  const [saveText, setSaveText] = useState('');
 
   const defaultPlayerIds = [6, 9, 3, 25, 448, 445];
   const defaultOpponentIds = [150, 248, 143, 130, 94, 65];
 
   const playerTeamIdsRef = useRef(defaultPlayerIds);
+  const restoredBattleRef = useRef(false);
 
   const initializeBattle = useCallback(async (
     playerIds?: number[], 
@@ -57,10 +65,9 @@ export default function App() {
       const oTeam = await Promise.all(opponentIds.map(id => fetchPokemon(id)));
       
       // Also populate the box with some initial variety if empty
-      setBox(prev => {
-        if (prev.length === 0) return [...pTeam];
-        return prev;
-      });
+      if (box.length === 0) {
+        setBox([...pTeam]);
+      }
 
       setBattle({
         playerTeam: pTeam,
@@ -83,21 +90,21 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [box]);
 
   const filteredBox = useMemo(() => {
     let result = [...box];
-    if (filterType !== 'all') {
-      result = result.filter(p => p.types.includes(filterType));
+    if (filters.filterType !== 'all') {
+      result = result.filter(p => p.types.includes(filters.filterType));
     }
-    if (filterFav) {
+    if (filters.filterFav) {
       result = result.filter(p => p.isFavorite);
     }
     
     result.sort((a, b) => {
-      if (sortBy === 'level') return b.level - a.level;
-      if (sortBy === 'id') return a.id - b.id;
-      if (sortBy === 'ivs') {
+      if (filters.sortBy === 'level') return b.level - a.level;
+      if (filters.sortBy === 'id') return a.id - b.id;
+      if (filters.sortBy === 'ivs') {
         const aIvs: number = a.ivs ? (Object.values(a.ivs) as number[]).reduce((sum, val) => sum + val, 0) : 0;
         const bIvs: number = b.ivs ? (Object.values(b.ivs) as number[]).reduce((sum, val) => sum + val, 0) : 0;
         return bIvs - aIvs;
@@ -106,10 +113,10 @@ export default function App() {
     });
     
     return result;
-  }, [box, filterType, filterFav, sortBy]);
+  }, [box, filters]);
 
   const toggleFavorite = (uniqueId: string) => {
-    setBox(prev => prev.map(p => p.uniqueId === uniqueId ? { ...p, isFavorite: !p.isFavorite } : p));
+    setBox(box.map(p => p.uniqueId === uniqueId ? { ...p, isFavorite: !p.isFavorite } : p));
   };
 
   const addToTeam = (pokemon: Pokemon) => {
@@ -164,8 +171,24 @@ export default function App() {
   }, [battle.playerTeam]);
 
   useEffect(() => {
-    initializeBattle();
-  }, []);
+    if (!rehydrated) return;
+    if (restoredBattleRef.current) return;
+
+    if (battleState && battleState.playerTeam.length > 0) {
+      setBattle(battleState);
+      setView('battle');
+      setLoading(false);
+      restoredBattleRef.current = true;
+    } else {
+      initializeBattle();
+      restoredBattleRef.current = true;
+    }
+  }, [rehydrated, battleState, initializeBattle]);
+
+  useEffect(() => {
+    setBattleState(battle);
+    setPlayerTeam(battle.playerTeam);
+  }, [battle, setBattleState, setPlayerTeam]);
 
   const handleImport = async () => {
     if (!importText) return;
@@ -174,7 +197,7 @@ export default function App() {
       setLoading(true);
       try {
         const newPkmn = await Promise.all(ids.map(id => fetchPokemon(id)));
-        setBox(prev => [...prev, ...newPkmn]);
+        setBox([...box, ...newPkmn]);
         setShowImport(false);
         setImportText('');
         setToast(`${newPkmn.length} POKÉMON AGGIUNTI AL BOX!`);
@@ -201,6 +224,57 @@ export default function App() {
     } else {
       setToast("CODICE NON VALIDO!");
       setTimeout(() => setToast(null), 2000);
+    }
+  };
+
+  const getSavePayload = () => ({
+    version: '1',
+    box,
+    playerTeam: battle.playerTeam,
+    battleState: battle,
+    filters,
+  });
+
+  const handleExportSave = () => {
+    const payload = JSON.stringify(getSavePayload(), null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'pkbattle-save.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setToast('Salvataggio esportato!');
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleCopySave = () => {
+    navigator.clipboard.writeText(JSON.stringify(getSavePayload()));
+    setToast('Salvataggio copiato negli appunti!');
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleLoadSave = () => {
+    if (!saveText) return;
+
+    try {
+      const parsed = JSON.parse(saveText);
+      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid save data');
+
+      setBox(Array.isArray(parsed.box) ? parsed.box : []);
+      setPlayerTeam(Array.isArray(parsed.playerTeam) ? parsed.playerTeam : []);
+      setBattleState(parsed.battleState || null);
+      setFilterType(parsed.filters?.filterType ?? 'all');
+      setFilterFav(parsed.filters?.filterFav ?? false);
+      setSortBy(parsed.filters?.sortBy ?? 'id');
+      setShowSaveManager(false);
+      setToast('Salvataggio caricato!');
+      setTimeout(() => setToast(null), 3000);
+    } catch (e) {
+      setToast('Salvataggio non valido!');
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -418,6 +492,14 @@ export default function App() {
                   >
                     <Import size={24} />
                     <span className="text-[10px] font-black uppercase tracking-widest">Importa Pokémon nel Box</span>
+                  </button>
+
+                  <button 
+                    onClick={() => { setSaveText(JSON.stringify(getSavePayload(), null, 2)); setShowSaveManager(true); }}
+                    className="w-full bg-poke-yellow text-dark-gray p-4 rounded-3xl border-4 border-white shadow-[0_6px_0_#d1b700] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-4"
+                  >
+                    <Package size={24} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Salvataggio Gioco</span>
                   </button>
                 </div>
 
@@ -709,7 +791,7 @@ export default function App() {
                     <div className="flex items-center gap-1 bg-white border rounded-lg px-2 py-1">
                         <Filter size={12} className="text-gray-400" />
                         <select 
-                            value={filterType} 
+                            value={filters.filterType} 
                             onChange={(e) => setFilterType(e.target.value)}
                             className="text-[10px] outline-none bg-transparent font-bold uppercase"
                         >
@@ -721,16 +803,16 @@ export default function App() {
                     </div>
 
                     <button 
-                        onClick={() => setFilterFav(!filterFav)}
-                        className={`flex items-center gap-1 border rounded-lg px-2 py-1 text-[10px] font-bold uppercase ${filterFav ? 'bg-yellow-100 border-yellow-300 text-yellow-700' : 'bg-white text-gray-400'}`}
+                        onClick={() => setFilterFav(!filters.filterFav)}
+                        className={`flex items-center gap-1 border rounded-lg px-2 py-1 text-[10px] font-bold uppercase ${filters.filterFav ? 'bg-yellow-100 border-yellow-300 text-yellow-700' : 'bg-white text-gray-400'}`}
                     >
-                        <Heart size={12} fill={filterFav ? "currentColor" : "none"} /> Preferiti
+                        <Heart size={12} fill={filters.filterFav ? "currentColor" : "none"} /> Preferiti
                     </button>
 
                     <div className="flex-1"></div>
 
                     <select 
-                        value={sortBy}
+                        value={filters.sortBy}
                         onChange={(e) => setSortBy(e.target.value as any)}
                         className="text-[10px] font-bold border rounded-lg px-2 py-1 outline-none"
                     >
@@ -1116,6 +1198,47 @@ export default function App() {
                   IMPORTA
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {showSaveManager && (
+          <div className="absolute inset-0 bg-black/80 z-[200] flex items-center justify-center p-8 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+              <h3 className="font-black text-poke-yellow text-center text-xl tracking-tight">SALVATAGGIO DI GIOCO</h3>
+              <p className="text-[11px] text-gray-500 text-center uppercase font-bold tracking-tighter italic">Esporta o importa il salvataggio completo del gioco.</p>
+              <textarea 
+                value={saveText}
+                onChange={(e) => setSaveText(e.target.value)}
+                className="w-full h-48 bg-gray-50 border-2 border-gray-200 rounded-xl p-3 text-xs font-mono focus:border-poke-blue focus:ring-0 outline-hidden transition-all text-dark-gray"
+                placeholder="Incolla qui il JSON del salvataggio..."
+              />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <button 
+                  onClick={() => setShowSaveManager(false)}
+                  className="py-3 bg-gray-100 text-gray-400 rounded-xl font-bold text-sm"
+                >
+                  ANNULLA
+                </button>
+                <button 
+                  onClick={handleLoadSave}
+                  className="py-3 bg-poke-blue text-white rounded-xl font-bold text-sm shadow-md active:scale-95 transition-transform"
+                >
+                  IMPORTA SALVATAGGIO
+                </button>
+                <button 
+                  onClick={handleExportSave}
+                  className="py-3 bg-poke-yellow text-dark-gray rounded-xl font-bold text-sm shadow-md active:scale-95 transition-transform"
+                >
+                  ESPORTA FILE
+                </button>
+              </div>
+              <button 
+                onClick={handleCopySave}
+                className="w-full py-3 bg-white text-dark-gray rounded-xl font-bold text-sm border-2 border-gray-200 shadow-sm active:scale-95 transition-transform"
+              >
+                COPIA JSON NEGLI APPUNTI
+              </button>
             </div>
           </div>
         )}
