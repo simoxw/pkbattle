@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, ChangeEvent } from 'react';
 import { Import, RotateCcw, Share2, XCircle, Package, Filter, Star, Heart, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Pokemon, BattleState, Move, Trainer } from './types';
@@ -20,7 +20,6 @@ export default function App() {
   });
 
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'hub' | 'battle' | 'box'>('hub');
   const [showImport, setShowImport] = useState(false);
   const [showChallenge, setShowChallenge] = useState(false);
   const [showBattleMenu, setShowBattleMenu] = useState(false);
@@ -36,6 +35,8 @@ export default function App() {
   const setFilterType = useGameStore(state => state.setFilterType);
   const setFilterFav = useGameStore(state => state.setFilterFav);
   const setSortBy = useGameStore(state => state.setSortBy);
+  const view = useGameStore(state => state.view);
+  const setView = useGameStore(state => state.setView);
   const battleState = useGameStore(state => state.battleState);
   const setBattleState = useGameStore(state => state.setBattleState);
   const setPlayerTeam = useGameStore(state => state.setPlayerTeam);
@@ -43,6 +44,8 @@ export default function App() {
   const [importText, setImportText] = useState('');
   const [showSaveManager, setShowSaveManager] = useState(false);
   const [saveText, setSaveText] = useState('');
+  const [saveManagerMessage, setSaveManagerMessage] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const defaultPlayerIds = [6, 9, 3, 25, 448, 445];
   const defaultOpponentIds = [150, 248, 143, 130, 94, 65];
@@ -171,18 +174,25 @@ export default function App() {
   }, [battle.playerTeam]);
 
   useEffect(() => {
+    if (view === 'box') {
+      setShowBox(true);
+    } else {
+      setShowBox(false);
+    }
+  }, [view]);
+
+  useEffect(() => {
     if (!rehydrated) return;
     if (restoredBattleRef.current) return;
 
     if (battleState && battleState.playerTeam.length > 0) {
       setBattle(battleState);
-      setView('battle');
       setLoading(false);
-      restoredBattleRef.current = true;
     } else {
       initializeBattle();
-      restoredBattleRef.current = true;
     }
+
+    restoredBattleRef.current = true;
   }, [rehydrated, battleState, initializeBattle]);
 
   useEffect(() => {
@@ -233,6 +243,7 @@ export default function App() {
     playerTeam: battle.playerTeam,
     battleState: battle,
     filters,
+    view,
   });
 
   const handleExportSave = () => {
@@ -256,6 +267,27 @@ export default function App() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleOpenSaveFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleSaveFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      setSaveText(text);
+      setSaveManagerMessage('File JSON caricato. Premi IMPORTA SALVATAGGIO per applicarlo.');
+    } catch (error) {
+      setSaveManagerMessage('Impossibile leggere il file.');
+    } finally {
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
+  };
+
   const handleLoadSave = () => {
     if (!saveText) return;
 
@@ -265,14 +297,23 @@ export default function App() {
 
       setBox(Array.isArray(parsed.box) ? parsed.box : []);
       setPlayerTeam(Array.isArray(parsed.playerTeam) ? parsed.playerTeam : []);
-      setBattleState(parsed.battleState || null);
+      const incomingBattle = parsed.battleState || null;
+      setBattleState(incomingBattle);
+      if (incomingBattle) {
+        setBattle(incomingBattle);
+      }
+      if (parsed.view && ['hub', 'battle', 'box'].includes(parsed.view)) {
+        setView(parsed.view);
+      }
       setFilterType(parsed.filters?.filterType ?? 'all');
       setFilterFav(parsed.filters?.filterFav ?? false);
       setSortBy(parsed.filters?.sortBy ?? 'id');
       setShowSaveManager(false);
+      setSaveManagerMessage('Salvataggio caricato correttamente.');
       setToast('Salvataggio caricato!');
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
+      setSaveManagerMessage('Salvataggio non valido! Controlla il file JSON.');
       setToast('Salvataggio non valido!');
       setTimeout(() => setToast(null), 3000);
     }
@@ -393,7 +434,7 @@ export default function App() {
         ...prev,
         playerActiveIndex: index,
         status: 'selecting',
-        history: [`Entra in campo ${prev.playerTeam[index].name}!`, ...prev.history]
+        history: [{ text: `Entra in campo ${prev.playerTeam[index].name}!` }, ...prev.history]
     }));
   };
 
@@ -495,7 +536,7 @@ export default function App() {
                   </button>
 
                   <button 
-                    onClick={() => { setSaveText(JSON.stringify(getSavePayload(), null, 2)); setShowSaveManager(true); }}
+                    onClick={() => { setSaveText(JSON.stringify(getSavePayload(), null, 2)); setSaveManagerMessage(''); setShowSaveManager(true); }}
                     className="w-full bg-poke-yellow text-dark-gray p-4 rounded-3xl border-4 border-white shadow-[0_6px_0_#d1b700] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-4"
                   >
                     <Package size={24} />
@@ -545,7 +586,7 @@ export default function App() {
                 </div>
 
                 {/* Battle Arena */}
-                <div className="flex-[1.2] relative p-5">
+                <div className="flex-1 relative p-5">
                   {/* Opponent Status */}
                   {currentOpponent && (
                     <motion.div 
@@ -606,7 +647,7 @@ export default function App() {
                   {/* Sprites */}
                   <AnimatePresence mode="wait">
                     {currentOpponent && (
-                      <div className="absolute top-24 right-10 flex flex-col items-center">
+                      <div className="absolute top-24 right-4 sm:right-10 flex flex-col items-center">
                         {battle.opponentTrainer && (
                           <motion.img 
                             initial={{ opacity: 0, scale: 0.8 }}
@@ -639,7 +680,7 @@ export default function App() {
                         animate={{ x: 0, opacity: 1, scale: 1 }}
                         exit={{ x: 100, opacity: 0, scale: 0.5 }}
                         src={currentPlayer.backSprite}
-                        className="absolute bottom-20 left-10 w-36 h-36 drop-shadow-2xl"
+                        className="absolute bottom-12 left-4 sm:bottom-20 sm:left-10 w-28 h-28 sm:w-36 sm:h-36 drop-shadow-2xl"
                         alt="player"
                         referrerPolicy="no-referrer"
                       />
@@ -647,26 +688,8 @@ export default function App() {
                   </AnimatePresence>
                 </div>
 
-                {/* Team Bar */}
-                <div className="h-12 bg-black/40 backdrop-blur-md flex items-center justify-center gap-2.5 px-4 mb-0 z-20">
-                  {battle.playerTeam.map((p, i) => (
-                    <button
-                      key={`${p.id}-${i}`}
-                      onClick={() => switchPokemon(i)}
-                      disabled={battle.status === 'attacking' || p.fainted}
-                      className={`relative w-8 h-8 rounded-full border-2 transition-all active:scale-90 ${
-                        i === battle.playerActiveIndex ? 'border-poke-yellow bg-poke-yellow shadow-[0_0_10px_rgba(255,222,0,0.5)]' : 'border-white bg-white/20'
-                      } ${p.fainted ? 'opacity-30 grayscale cursor-not-allowed' : 'cursor-pointer overflow-hidden'}`}
-                    >
-                      <img src={p.sprite} className="w-full h-full object-contain" alt={p.name} referrerPolicy="no-referrer" />
-                      {p.fainted && <XCircle size={10} className="absolute -top-1 -right-1 text-poke-red bg-white rounded-full" />}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Team Bar and Log Area */}
-                <div className="flex-1 bg-white border-t-4 border-poke-red p-4 grid grid-cols-2 grid-rows-[auto_1fr_1fr] gap-3 z-30">
-                  <div className="col-span-2 bg-gray-50 border-2 border-gray-200 rounded-xl p-3 text-[11px] font-bold leading-tight h-16 overflow-y-auto scrollbar-hide space-y-1">
+                <div className="bg-white border-t-4 border-poke-red p-4 flex flex-col gap-3 z-30">
+                  <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 text-[11px] font-bold leading-tight h-24 overflow-y-auto scrollbar-hide space-y-1">
                     {battle.history.map((log, i) => (
                       <div key={i} style={{ color: log.color || '#333' }}>
                         {log.text}
@@ -675,81 +698,97 @@ export default function App() {
                   </div>
 
                   {battle.status === 'selecting' && currentPlayer && (
-                    <>
+                    <div className="grid grid-cols-2 gap-3">
                       {currentPlayer.moves.slice(0, 4).map((move, i) => (
-                          <button
-                              key={`${move.name}-${i}`}
-                              onClick={() => executeTurn(move)}
-                              className="btn-battle text-[11px]"
-                              style={{ backgroundColor: getTypeCode(move.type) }}
-                          >
-                              {move.name.toUpperCase()}
-                          </button>
+                        <button
+                          key={`${move.name}-${i}`}
+                          onClick={() => executeTurn(move)}
+                          className="btn-battle text-[11px]"
+                          style={{ backgroundColor: getTypeCode(move.type) }}
+                        >
+                          {move.name.toUpperCase()}
+                        </button>
                       ))}
                       <button 
-                          onClick={() => setBattle(prev => ({ ...prev, status: 'switching' }))}
-                          className="col-span-1 bg-gray-100 text-gray-600 border border-gray-300 rounded-lg py-2 font-bold text-[10px] uppercase shadow-inner"
+                        onClick={() => setBattle(prev => ({ ...prev, status: 'switching' }))}
+                        className="col-span-1 bg-gray-100 text-gray-600 border border-gray-300 rounded-lg py-3 font-bold text-[10px] uppercase shadow-inner"
                       >
-                          CAMBIA
+                        CAMBIA
                       </button>
                       <button 
-                          onClick={() => setView('hub')}
-                          className="col-span-1 bg-red-50 text-poke-red border border-red-200 rounded-lg py-2 font-bold text-[10px] uppercase shadow-inner"
+                        onClick={() => setView('hub')}
+                        className="col-span-1 bg-red-50 text-poke-red border border-red-200 rounded-lg py-3 font-bold text-[10px] uppercase shadow-inner"
                       >
-                          RESA
+                        RESA
                       </button>
-                    </>
+                    </div>
                   )}
 
                   {(battle.status === 'attacking') && (
-                      <div className="col-span-2 flex items-center justify-center italic text-gray-400 text-sm animate-pulse">
-                          In attesa della mossa...
-                      </div>
+                    <div className="flex items-center justify-center italic text-gray-400 text-sm animate-pulse h-12">
+                      In attesa della mossa...
+                    </div>
                   )}
 
                   {battle.status === 'switching' && (
-                      <div className="col-span-2 grid grid-cols-3 gap-2">
-                          {battle.playerTeam.map((p, i) => (
-                              <button
-                                  key={`switch-${i}`}
-                                  onClick={() => switchPokemon(i)}
-                                  disabled={p.fainted || i === battle.playerActiveIndex}
-                                  className={`p-1 rounded-lg border-2 transition-all ${p.fainted ? 'opacity-50 grayscale' : 'active:bg-gray-100'} ${i === battle.playerActiveIndex ? 'border-poke-yellow bg-yellow-50' : 'border-gray-100'}`}
-                              >
-                                  <img src={p.sprite} className="w-10 h-10 mx-auto" alt={p.name} referrerPolicy="no-referrer" />
-                                  <div className="text-[8px] font-bold text-center truncate uppercase">{p.name}</div>
-                              </button>
-                          ))}
-                          <button 
-                              onClick={() => setBattle(prev => ({ ...prev, status: 'selecting' }))}
-                              className="col-span-3 py-1 bg-gray-200 text-gray-600 rounded text-[10px] uppercase font-bold"
-                          >
-                              Annulla
-                          </button>
-                      </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {battle.playerTeam.map((p, i) => (
+                        <button
+                          key={`switch-${i}`}
+                          onClick={() => switchPokemon(i)}
+                          disabled={p.fainted || i === battle.playerActiveIndex}
+                          className={`p-1 rounded-lg border-2 transition-all ${p.fainted ? 'opacity-50 grayscale' : 'active:bg-gray-100'} ${i === battle.playerActiveIndex ? 'border-poke-yellow bg-yellow-50' : 'border-gray-100'}`}
+                        >
+                          <img src={p.sprite} className="w-10 h-10 mx-auto" alt={p.name} referrerPolicy="no-referrer" />
+                          <div className="text-[8px] font-bold text-center truncate uppercase">{p.name}</div>
+                        </button>
+                      ))}
+                      <button 
+                        onClick={() => setBattle(prev => ({ ...prev, status: 'selecting' }))}
+                        className="col-span-3 py-3 bg-gray-200 text-gray-600 rounded text-[10px] uppercase font-bold"
+                      >
+                        Annulla
+                      </button>
+                    </div>
                   )}
 
                   {battle.status === 'ended' && (
-                      <div className="col-span-2 space-y-2">
-                          <div className={`text-center font-black text-xl ${battle.winner === 'player' ? 'text-green-600' : 'text-poke-red'}`}>
-                              {battle.winner === 'player' ? 'VITTORIA!' : 'SCONFITTA!'}
-                          </div>
-                          <div className="flex gap-2">
-                            <button 
-                                onClick={() => initializeBattle()}
-                                className="flex-1 bg-poke-blue text-white rounded-xl py-3 font-black text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
-                            >
-                                <RotateCcw size={16} /> RIGIOCA
-                            </button>
-                            <button 
-                                onClick={() => setView('hub')}
-                                className="flex-1 bg-dark-gray text-white rounded-xl py-3 font-black text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
-                            >
-                                HUB
-                            </button>
-                          </div>
+                    <div className="space-y-2">
+                      <div className={`text-center font-black text-xl ${battle.winner === 'player' ? 'text-green-600' : 'text-poke-red'}`}>
+                        {battle.winner === 'player' ? 'VITTORIA!' : 'SCONFITTA!'}
                       </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => initializeBattle()}
+                          className="flex-1 bg-poke-blue text-white rounded-xl py-3 font-black text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
+                        >
+                          <RotateCcw size={16} /> RIGIOCA
+                        </button>
+                        <button 
+                          onClick={() => setView('hub')}
+                          className="flex-1 bg-dark-gray text-white rounded-xl py-3 font-black text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
+                        >
+                          HUB
+                        </button>
+                      </div>
+                    </div>
                   )}
+
+                  <div className="h-12 bg-black/40 backdrop-blur-md flex items-center justify-center gap-2.5 px-4 mb-0 z-20">
+                    {battle.playerTeam.map((p, i) => (
+                      <button
+                        key={`${p.id}-${i}`}
+                        onClick={() => switchPokemon(i)}
+                        disabled={battle.status === 'attacking' || p.fainted}
+                        className={`relative w-8 h-8 rounded-full border-2 transition-all active:scale-90 ${
+                          i === battle.playerActiveIndex ? 'border-poke-yellow bg-poke-yellow shadow-[0_0_10px_rgba(255,222,0,0.5)]' : 'border-white bg-white/20'
+                        } ${p.fainted ? 'opacity-30 grayscale cursor-not-allowed' : 'cursor-pointer overflow-hidden'}`}
+                      >
+                        <img src={p.sprite} className="w-full h-full object-contain" alt={p.name} referrerPolicy="no-referrer" />
+                        {p.fainted && <XCircle size={10} className="absolute -top-1 -right-1 text-poke-red bg-white rounded-full" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -1205,20 +1244,48 @@ export default function App() {
         {showSaveManager && (
           <div className="absolute inset-0 bg-black/80 z-[200] flex items-center justify-center p-8 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-              <h3 className="font-black text-poke-yellow text-center text-xl tracking-tight">SALVATAGGIO DI GIOCO</h3>
+              <div className="flex items-center justify-between gap-4">
+                <button
+                  onClick={() => setShowSaveManager(false)}
+                  className="flex items-center gap-2 text-[10px] uppercase font-black tracking-widest text-dark-gray bg-gray-100 rounded-full px-3 py-2 border border-gray-200 shadow-sm active:scale-95 transition-transform"
+                >
+                  <ArrowLeft size={14} /> INDIETRO
+                </button>
+                <h3 className="font-black text-poke-yellow text-center text-xl tracking-tight flex-1">SALVATAGGIO DI GIOCO</h3>
+                <div className="w-20" />
+              </div>
               <p className="text-[11px] text-gray-500 text-center uppercase font-bold tracking-tighter italic">Esporta o importa il salvataggio completo del gioco.</p>
+              <p className="text-[10px] text-gray-400 text-center italic">Puoi incollare il JSON oppure selezionare un file `.json` dal dispositivo.</p>
+              {saveManagerMessage && (
+                <div className="text-[11px] text-center text-dark-gray bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                  {saveManagerMessage}
+                </div>
+              )}
               <textarea 
                 value={saveText}
                 onChange={(e) => setSaveText(e.target.value)}
                 className="w-full h-48 bg-gray-50 border-2 border-gray-200 rounded-xl p-3 text-xs font-mono focus:border-poke-blue focus:ring-0 outline-hidden transition-all text-dark-gray"
                 placeholder="Incolla qui il JSON del salvataggio..."
               />
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json"
+                className="hidden"
+                onChange={handleSaveFileChange}
+              />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
                 <button 
-                  onClick={() => setShowSaveManager(false)}
+                  onClick={() => { setShowSaveManager(false); setSaveManagerMessage(''); }}
                   className="py-3 bg-gray-100 text-gray-400 rounded-xl font-bold text-sm"
                 >
                   ANNULLA
+                </button>
+                <button 
+                  onClick={handleOpenSaveFile}
+                  className="py-3 bg-white text-dark-gray rounded-xl font-bold text-sm border-2 border-gray-200 shadow-sm active:scale-95 transition-transform"
+                >
+                  SELEZIONA FILE
                 </button>
                 <button 
                   onClick={handleLoadSave}

@@ -6,14 +6,15 @@
 
 Questo progetto è ora configurato per essere sviluppato e testato in locale. Non si lavora più su Google AI Studio: la cartella locale è la base del progetto.
 
+L'app adesso può usare Zustand + IndexedDB per persistere il box dei Pokémon in modo più solido e scalabile.
+
 ## Run Locally
 
 **Prerequisiti:** Node.js
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in `.env.local` if usi le API Gemini
-3. Avvia l'app:
+2. Avvia l'app:
    `npm run dev`
 
 ## Build e preparazione per GitHub

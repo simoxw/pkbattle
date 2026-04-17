@@ -4,6 +4,8 @@ export interface SettingsSlice {
     filterFav: boolean;
     sortBy: 'level' | 'ivs' | 'id';
   };
+  view: 'hub' | 'battle' | 'box';
+  setView: (view: 'hub' | 'battle' | 'box') => void;
   setFilterType: (filterType: string) => void;
   setFilterFav: (filterFav: boolean) => void;
   setSortBy: (sortBy: 'level' | 'ivs' | 'id') => void;
@@ -16,8 +18,10 @@ export const createSettingsSlice = (set: any): SettingsSlice => ({
     filterFav: false,
     sortBy: 'id',
   },
+  view: 'hub',
+  setView: (view) => set({ view }),
   setFilterType: (filterType) => set((state: any) => ({ filters: { ...state.filters, filterType } })),
   setFilterFav: (filterFav) => set((state: any) => ({ filters: { ...state.filters, filterFav } })),
   setSortBy: (sortBy) => set((state: any) => ({ filters: { ...state.filters, sortBy } })),
-  resetSettings: () => set({ filters: { filterType: 'all', filterFav: false, sortBy: 'id' } }),
+  resetSettings: () => set({ filters: { filterType: 'all', filterFav: false, sortBy: 'id' }, view: 'hub' }),
 });

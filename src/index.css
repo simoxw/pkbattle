@@ -81,4 +81,21 @@
     text-transform: uppercase;
     color: white;
   }
+
+  @media (max-width: 640px) {
+    .hp-bar-card {
+      width: min(180px, 90%);
+      padding: 8px;
+    }
+
+    .btn-battle {
+      padding: 10px;
+      font-size: 12px;
+    }
+
+    .pokemon-floating {
+      width: 5.5rem !important;
+      height: 5.5rem !important;
+    }
+  }
 }

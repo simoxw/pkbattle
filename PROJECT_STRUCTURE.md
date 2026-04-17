@@ -11,20 +11,19 @@ pkbattle/
 ├── vite.config.ts
 ├── index.html
 ├── metadata.json
-├── scripts/
-│   └── copy-dist.js
 ├── src/
 │   ├── main.tsx
 │   ├── App.tsx
 │   ├── index.css
 │   ├── constants.ts
 │   ├── types.ts
+│   ├── store/
+│   │   └── gameStore.ts
 │   ├── data/
 │   │   └── trainers.ts
 │   └── services/
 │       ├── api.ts
 │       └── base64.ts
-└── github/ (generata da `npm run build:github`)
 ```
 
 ## Descrizione dei file
@@ -50,8 +49,8 @@ pkbattle/
 - `metadata.json`
   - File iniziale ereditato da AI Studio; può rimanere come riferimento ma non è necessario per l'app locale.
 
-- `scripts/copy-dist.js`
-  - Script Node.js che copia i file da `dist/` a `github/` dopo la build.
+- `src/store/gameStore.ts`
+  - Store Zustand che persiste il box dei Pokémon e lo sincronizza con IndexedDB.
 
 - `src/main.tsx`
   - Entry point React che monta l'app in `#root`.

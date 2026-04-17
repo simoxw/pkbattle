@@ -37,6 +37,7 @@ const createStore = (set: any) => ({
       playerTeam: [],
       battleState: null,
       filters: { filterType: 'all', filterFav: false, sortBy: 'id' },
+      view: 'hub',
     });
   },
 });
@@ -50,6 +51,7 @@ export const useGameStore = create<GameStorageState>()(
       playerTeam: state.playerTeam,
       battleState: state.battleState,
       filters: state.filters,
+      view: state.view,
     }),
     onRehydrateStorage: () => (state) => {
       state?.setRehydrated(true);
