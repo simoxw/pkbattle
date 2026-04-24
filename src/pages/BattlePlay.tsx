@@ -928,9 +928,9 @@ const StatBadge: React.FC<StatBadgeProps> = ({ stat, stage }) => {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 relative bg-gradient-to-b from-blue-50/50 to-emerald-50/50 flex flex-col items-center justify-center p-6 overflow-hidden">
-        {/* Enemy Side */}
-        <div className="w-full flex justify-end items-start mb-6 mt-4">
+      <div className="flex-1 relative bg-gradient-to-b from-blue-50/50 to-emerald-50/50 overflow-hidden">
+        {/* Enemy Side - Absolute Positioned */}
+        <div className="absolute top-[8%] left-0 right-0 px-2 flex justify-end items-start">
           <div className="bg-white p-3 rounded-2xl border-2 border-pk-dark shadow-xl w-[200px] relative">
             {/* Stat Change Popups */}
             <div className="absolute -top-12 left-0 right-0 flex flex-col items-center pointer-events-none">
@@ -953,11 +953,18 @@ const StatBadge: React.FC<StatBadgeProps> = ({ stat, stage }) => {
               <span className="font-black text-[12px] uppercase tracking-widest truncate">{activeEnemy.name}</span>
               <span className="font-bold text-[9px] bg-slate-100 px-1.5 rounded">Lv.{activeEnemy.level}</span>
             </div>
-            <div className="h-2.5 bg-slate-200 rounded-full border border-pk-dark overflow-hidden shadow-inner mb-0.5">
+            <div className="h-2.5 bg-slate-200 rounded-full border border-pk-dark overflow-hidden shadow-inner mb-1">
                <motion.div 
                  initial={{ width: '100%' }} animate={{ width: `${(enemyHp/activeEnemy.maxHp)*100}%` }}
                  className={`h-full ${enemyHp/activeEnemy.maxHp > 0.5 ? 'bg-emerald-500' : 'bg-rose-500'} transition-colors duration-500`}
                />
+            </div>
+            <div className="flex gap-1 mb-1">
+               {activeEnemy.types.map(t => (
+                 <span key={t} className={`${getTypeBadgeClass(t)} text-[6px] px-1.5 py-0.5 rounded-sm uppercase font-black`}>
+                   {formatTypeName(t)}
+                 </span>
+               ))}
             </div>
             <div className="flex justify-between items-center pr-1 mb-1">
                <div className="flex flex-wrap gap-0.5 mt-1 -ml-1">
@@ -985,19 +992,19 @@ const StatBadge: React.FC<StatBadgeProps> = ({ stat, stage }) => {
           </div>
         </div>
 
-        {/* Player Side */}
-        <div className="w-full flex justify-start items-end mt-2 px-4 relative">
-          <div className="mr-2 w-40 h-40 flex items-center justify-center relative">
+        {/* Player Side - Absolute Positioned */}
+        <div className="absolute bottom-[8%] left-0 right-0 px-2 flex justify-between items-end">
+          <div className="flex-shrink-0 w-32 h-32 flex items-center justify-center relative">
              <AnimatePresence mode='wait'>
                <motion.img 
                  key={playerPk.id} initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }}
                  src={getPokemonSprite(playerPk.pokemonId, 'animated')} alt="" referrerPolicy="no-referrer"
-                 className="w-44 h-44 object-contain origin-bottom drop-shadow-[0_15px_15px_rgba(0,0,0,0.15)]"
+                 className="w-36 h-36 object-contain origin-bottom drop-shadow-[0_15px_15px_rgba(0,0,0,0.15)]"
                  style={{ transform: 'scaleX(-1)' }} // Back sprite simplified as flipped animated
                />
              </AnimatePresence>
           </div>
-          <div className="bg-white p-4 rounded-3xl border-2 border-pk-dark shadow-xl w-[230px] bottom-4 left-4 z-10">
+          <div className="bg-white p-4 rounded-3xl border-2 border-pk-dark shadow-xl flex-1 ml-1 mb-2 z-10">
             {/* Stat Change Popups */}
             <div className="absolute -top-12 left-0 right-0 flex flex-col items-center pointer-events-none">
                <AnimatePresence>
@@ -1019,22 +1026,35 @@ const StatBadge: React.FC<StatBadgeProps> = ({ stat, stage }) => {
               <span className="font-black text-[12px] uppercase tracking-widest text-pk-dark">{playerPk.name}</span>
               <span className="font-bold text-[9px] bg-slate-50 px-2 py-0.5 rounded">Lv.{playerPk.level}</span>
             </div>
-            <div className="h-3 bg-slate-200 rounded-full border border-pk-dark overflow-hidden mb-1.5 shadow-inner">
+            <div className="h-3 bg-slate-200 rounded-full border border-pk-dark overflow-hidden mb-1 shadow-inner">
                <motion.div 
                  initial={{ width: '100%' }} animate={{ width: `${(playerPk.currentHp / playerPk.stats.hp) * 100}%` }}
                  className={`h-full ${playerPk.currentHp/playerPk.stats.hp > 0.5 ? 'bg-emerald-500' : 'bg-rose-500'} transition-colors duration-500`}
                />
             </div>
-            <div className="flex justify-between items-center pr-1 mb-1">
-               <div className="flex flex-wrap gap-0.5 mt-0.5">
-                  {Object.entries(playerStages).map(([s, v]) => <StatBadge key={s} stat={s} stage={v as number} />)}
+            <div className="flex justify-between items-center mb-1 px-0.5">
+               <div className="flex gap-1">
+                  {playerPk.types.map(t => (
+                    <span key={t} className={`${getTypeBadgeClass(t)} text-[6px] px-1.5 py-0.5 rounded-sm uppercase font-black`}>
+                      {formatTypeName(t)}
+                    </span>
+                  ))}
                </div>
-               <div className="font-black text-[9px] tabular-nums flex items-center gap-1 opacity-60">
-                 <span>{Math.round(playerPk.currentHp)}</span>
-                 <span className="text-slate-400">/ {playerPk.stats.hp} PS</span>
+               <div className="font-black text-[9px] tabular-nums flex items-center gap-1 opacity-80">
+                  <span>{Math.round(playerPk.currentHp)}</span>
+                  <span className="text-slate-400 text-[8px]">/ {playerPk.stats.hp} PS</span>
+                  <div className="flex flex-wrap gap-0.5 mb-1">
+                     {Object.entries(playerStages).map(([s, v]) => <StatBadge key={s} stat={s} stage={v as number} />)}
+                  </div>
                </div>
             </div>
-            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-200 mt-1">
+            <div className="flex justify-between items-center mb-0.5 px-0.5">
+               <span className="text-[6px] font-black uppercase text-pk-blue opacity-70">Esperienza ({Math.floor(((playerPk.exp || 0) / getExpToNextLevel(playerPk.level, playerPk.growthRate)) * 100)}%)</span>
+               <span className="text-[6px] font-black tabular-nums text-pk-blue">
+                 {playerPk.exp || 0} / {getExpToNextLevel(playerPk.level, playerPk.growthRate)}
+               </span>
+            </div>
+            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                <motion.div 
                  initial={{ width: '0%' }}
                  animate={{ width: `${((playerPk.exp || 0) / getExpToNextLevel(playerPk.level, playerPk.growthRate)) * 100}%` }}
