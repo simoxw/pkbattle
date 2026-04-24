@@ -2,10 +2,10 @@
  * Calcola l'esperienza necessaria per il prossimo livello
  */
 /**
- * Calcola l'esperienza necessaria per raggiungere un certo livello basandosi sul growth rate
+ * Calcola l'esperienza totale cumulativa necessaria per raggiungere un certo livello
  */
-export const getExpToNextLevel = (level: number, growthRate: string = 'medium-slow') => {
-  const L = level;
+const getTotalExpForLevel = (level: number, growthRate: string = 'medium'): number => {
+  const L = Math.max(1, level);
   switch (growthRate?.toLowerCase()) {
     case 'fast':
       return Math.floor((4 * Math.pow(L, 3)) / 5);
@@ -17,8 +17,16 @@ export const getExpToNextLevel = (level: number, growthRate: string = 'medium-sl
     case 'medium-slow':
     default:
       // Formula Medium-Slow ufficiale: 1.2L^3 - 15L^2 + 100L - 140
-      return Math.floor(1.2 * Math.pow(L, 3) - 15 * Math.pow(L, 2) + 100 * L - 140);
+      // Nota: la formula può dare valori negativi per livelli molto bassi (<2), gestiamo con max(0)
+      return Math.max(0, Math.floor(1.2 * Math.pow(L, 3) - 15 * Math.pow(L, 2) + 100 * L - 140));
   }
+};
+
+/**
+ * Calcola l'esperienza necessaria per passare dal livello corrente al successivo (Delta)
+ */
+export const getExpToNextLevel = (level: number, growthRate: string = 'medium-slow') => {
+  return getTotalExpForLevel(level + 1, growthRate) - getTotalExpForLevel(level, growthRate);
 };
 
 /**

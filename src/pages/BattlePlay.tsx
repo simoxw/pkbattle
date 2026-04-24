@@ -60,7 +60,7 @@ const TypewriterLog = ({ messages }: { messages: BattleMessage[] }) => {
         setDisplayedLines(prev => [...prev, { text: '', type: msg.type }]);
       }
 
-      const speed = 10; // Più veloce
+      const speed = 1; // Istantaneo
       if (charIndex < msg.text.length) {
         const char = msg.text[charIndex];
         const timeout = setTimeout(() => {
@@ -77,7 +77,7 @@ const TypewriterLog = ({ messages }: { messages: BattleMessage[] }) => {
         const timeout = setTimeout(() => {
           setMsgIndex(prev => prev + 1);
           setCharIndex(0);
-        }, 400); // Pausa più breve tra messaggi
+        }, 50); // Pausa minima tra messaggi
         return () => clearTimeout(timeout);
       }
     }
@@ -1119,8 +1119,23 @@ const StatBadge: React.FC<StatBadgeProps> = ({ stat, stage }) => {
                         <div className="space-y-4">
                           <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 shadow-inner">
                              <div className="flex justify-between items-center mb-2">
-                                <span className="font-black text-[13px] uppercase text-pk-dark tracking-tighter">{evaluationQueue[currentEvalIndex].data.name}</span>
+                                <div className="flex flex-col">
+                                   <span className="font-black text-[13px] uppercase text-pk-dark tracking-tighter">{evaluationQueue[currentEvalIndex].data.name}</span>
+                                   <span className="text-[7px] font-black uppercase bg-white px-2 py-0.5 rounded-full border border-slate-100 w-fit text-slate-400 mt-1">
+                                      {evaluationQueue[currentEvalIndex].data.category === 'physical' ? 'Fisico' : evaluationQueue[currentEvalIndex].data.category === 'special' ? 'Speciale' : 'Stato'}
+                                   </span>
+                                </div>
                                 <span className={`${getTypeBadgeClass(evaluationQueue[currentEvalIndex].data.type)} text-[8px] px-2 py-0.5 rounded-full uppercase font-black`}>{formatTypeName(evaluationQueue[currentEvalIndex].data.type)}</span>
+                             </div>
+                             <div className="flex gap-4 mb-3 border-y border-slate-200/50 py-2">
+                                <div className="flex flex-col">
+                                   <span className="text-[7px] font-bold text-slate-400 uppercase">Potenza</span>
+                                   <span className="text-[11px] font-black">{evaluationQueue[currentEvalIndex].data.power || '--'}</span>
+                                </div>
+                                <div className="flex flex-col">
+                                   <span className="text-[7px] font-bold text-slate-400 uppercase">Precisione</span>
+                                   <span className="text-[11px] font-black">{evaluationQueue[currentEvalIndex].data.accuracy ? evaluationQueue[currentEvalIndex].data.accuracy + '%' : '--'}</span>
+                                </div>
                              </div>
                              <p className="text-[10px] text-slate-500 font-medium italic leading-relaxed">"{evaluationQueue[currentEvalIndex].data.description}"</p>
                           </div>
@@ -1156,7 +1171,13 @@ const StatBadge: React.FC<StatBadgeProps> = ({ stat, stage }) => {
                                 >
                                    <div className="text-left">
                                       <div className="font-black text-xs uppercase text-pk-dark group-active:text-rose-500">{m.name}</div>
-                                      <div className="text-[8px] font-bold text-slate-400">{formatTypeName(m.type)}</div>
+                                      <div className="flex gap-2 items-center">
+                                         <span className="text-[7px] font-bold text-slate-400 uppercase">{formatTypeName(m.type)}</span>
+                                         <span className="text-[7px] font-black text-pk-blue uppercase bg-white px-1.5 py-0.5 rounded-md border border-slate-100">
+                                            {m.category === 'physical' ? 'Fisico' : m.category === 'special' ? 'Speciale' : 'Stato'}
+                                         </span>
+                                         <span className="text-[7px] font-black text-slate-400 uppercase">Pot: {m.power || '--'}</span>
+                                      </div>
                                    </div>
                                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-200 group-active:text-rose-500"><X size={16}/></div>
                                 </button>
