@@ -1,9 +1,24 @@
 /**
  * Calcola l'esperienza necessaria per il prossimo livello
  */
-export const getExpToNextLevel = (level: number) => {
-  // Formula Medium-Slow semplificata (parabolica): L^3
-  return Math.pow(level, 3);
+/**
+ * Calcola l'esperienza necessaria per raggiungere un certo livello basandosi sul growth rate
+ */
+export const getExpToNextLevel = (level: number, growthRate: string = 'medium-slow') => {
+  const L = level;
+  switch (growthRate?.toLowerCase()) {
+    case 'fast':
+      return Math.floor((4 * Math.pow(L, 3)) / 5);
+    case 'medium-fast':
+    case 'medium':
+      return Math.pow(L, 3);
+    case 'slow':
+      return Math.floor((5 * Math.pow(L, 3)) / 4);
+    case 'medium-slow':
+    default:
+      // Formula Medium-Slow ufficiale: 1.2L^3 - 15L^2 + 100L - 140
+      return Math.floor(1.2 * Math.pow(L, 3) - 15 * Math.pow(L, 2) + 100 * L - 140);
+  }
 };
 
 /**

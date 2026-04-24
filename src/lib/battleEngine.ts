@@ -20,11 +20,81 @@ export function getStatStageMultiplier(stage: number): number {
   return multipliers[stage] || 1;
 }
 
+export const NATURE_MODS: Record<string, { up: string; down: string }> = {
+  Lonely:   { up: 'attack',  down: 'defense' },
+  Schiva:   { up: 'attack',  down: 'defense' },
+  Brave:    { up: 'attack',  down: 'speed'   },
+  Audace:   { up: 'attack',  down: 'speed'   },
+  Adamant:  { up: 'attack',  down: 'spAtk'   },
+  Decisa:   { up: 'attack',  down: 'spAtk'   },
+  Naughty:  { up: 'attack',  down: 'spDef'   },
+  Birbona:  { up: 'attack',  down: 'spDef'   },
+  Bold:     { up: 'defense', down: 'attack'  },
+  Sicura:   { up: 'defense', down: 'attack'  },
+  Relaxed:  { up: 'defense', down: 'speed'   },
+  Placida:  { up: 'defense', down: 'speed'   },
+  Impish:   { up: 'defense', down: 'spAtk'   },
+  Scaltra:  { up: 'defense', down: 'spAtk'   },
+  Lax:      { up: 'defense', down: 'spDef'   },
+  Fiacca:   { up: 'defense', down: 'spDef'   },
+  Timid:    { up: 'speed',   down: 'attack' },
+  Timida:   { up: 'speed',   down: 'attack'  },
+  Hasty:    { up: 'speed',   down: 'defense' },
+  Lesta:    { up: 'speed',   down: 'defense' },
+  Jolly:    { up: 'speed',   down: 'spAtk'   },
+  Allegra:  { up: 'speed',   down: 'spAtk'   },
+  Naive:    { up: 'speed',   down: 'spDef'   },
+  Ingenua:  { up: 'speed',   down: 'spDef'   },
+  Modest:   { up: 'spAtk',   down: 'attack'  },
+  Modesta:  { up: 'spAtk',   down: 'attack'  },
+  Mild:     { up: 'spAtk',   down: 'defense' },
+  Mite:     { up: 'spAtk',   down: 'defense' },
+  Quiet:    { up: 'spAtk',   down: 'speed'   },
+  Quieta:   { up: 'spAtk',   down: 'speed'   },
+  Rash:     { up: 'spAtk',   down: 'spDef'   },
+  Ardente:  { up: 'spAtk',   down: 'spDef'   },
+  Calm:     { up: 'spDef',   down: 'attack'  },
+  Calma:    { up: 'spDef',   down: 'attack'  },
+  Gentle:   { up: 'spDef',   down: 'defense' },
+  Gentile:  { up: 'spDef',   down: 'defense' },
+  Sassy:    { up: 'spDef',   down: 'speed'   },
+  Vivace:   { up: 'spDef',   down: 'speed'   },
+  Careful:  { up: 'spDef',   down: 'spAtk'   },
+  Cauta:    { up: 'spDef',   down: 'spAtk'   },
+};
+
+/**
+ * Calcola le statistiche finali secondo la formula ufficiale
+ */
+export function calculateStats(level: number, baseStats: any, ivs: any, evs: any, nature: string): any {
+  const stats: any = {};
+  
+  // HP Formula: ((2 * Base + IV + (EV/4)) * Level / 100) + Level + 10
+  stats.hp = Math.floor(((2 * baseStats.hp + (ivs?.hp || 31) + Math.floor((evs?.hp || 0) / 4)) * level) / 100) + level + 10;
+  
+  // Other Stats: (((2 * Base + IV + (EV/4)) * Level / 100) + 5) * Nature
+  const otherStats = ['attack', 'defense', 'spAtk', 'spDef', 'speed'];
+  otherStats.forEach(stat => {
+    let val = Math.floor(((2 * baseStats[stat as keyof typeof baseStats] + (ivs?.[stat] || 31) + Math.floor((evs?.[stat] || 0) / 4)) * level) / 100) + 5;
+    
+    // Apply nature multiplier
+    const mod = NATURE_MODS[nature];
+    if (mod) {
+      if (mod.up === stat) val = Math.floor(val * 1.1);
+      if (mod.down === stat) val = Math.floor(val * 0.9);
+    }
+    
+    stats[stat] = val;
+  });
+
+  return stats;
+}
+
 /**
  * Calcola il danno secondo la formula ufficiale Gen 9
  */
 export function calculateDamage(
-  attacker: { level: number, stats: any, types: string[] },
+  attacker: { level: number, stats: any, types: string[], status?: string | null },
   defender: { stats: any, types: string[] },
   move: Move,
   stageA: number = 0,
@@ -65,13 +135,21 @@ export function calculateDamage(
     effectivenessMultiplier *= mult;
   });
 
-  // 7. Calcolo Finale
+  // 7. Status Effects
+  let statusMultiplier = 1;
+  // BRN: -50% attacco fisico
+  if (attacker.status === 'BRN' && move.category === 'physical') {
+    statusMultiplier = 0.5;
+  }
+
+  // 8. Calcolo Finale
   const totalDamage = Math.floor(
     baseDamage *
     criticalMultiplier *
     randomMultiplier *
     stabMultiplier *
-    effectivenessMultiplier
+    effectivenessMultiplier *
+    statusMultiplier
   );
 
   return {

@@ -15,7 +15,7 @@ import { db } from '../lib/db';
 import { useStore } from '../store/useStore';
 import { ITEMS } from '../constants/items';
 import { type Pokemon, type StatName } from '../types';
-import { calculateDamage } from '../lib/battleEngine';
+import { calculateDamage, calculateStats } from '../lib/battleEngine';
 import { decodeTeam } from '../lib/serialization';
 import { TRAINERS } from '../data/trainers';
 
@@ -264,8 +264,8 @@ export default function BattlePlay() {
         let newLevel = pk.level;
         let leveledUp = false;
 
-        while (newExp >= getExpToNextLevel(newLevel) && newLevel < 100) {
-          newExp -= getExpToNextLevel(newLevel);
+        while (newExp >= getExpToNextLevel(newLevel, pk.growthRate) && newLevel < 100) {
+          newExp -= getExpToNextLevel(newLevel, pk.growthRate);
           const oldLevel = newLevel;
           newLevel++;
           leveledUp = true;
@@ -291,10 +291,7 @@ export default function BattlePlay() {
         pk.level = newLevel;
 
         if (leveledUp) {
-          Object.keys(pk.stats).forEach(stat => {
-            const s = stat as keyof typeof pk.stats;
-            pk.stats[s] = Math.floor(pk.stats[s] * (1 + 0.03 * levelDiff));
-          });
+          pk.stats = calculateStats(pk.level, pk.baseStats, pk.ivs, pk.evs, pk.nature);
           pk.currentHp = pk.stats.hp; 
         }
 
@@ -358,9 +355,8 @@ export default function BattlePlay() {
       pokemonId: evoData.toId,
       name: basic.name,
       types: basic.types,
-      baseStats: basic.baseStats,
-      // Statistiche ricalcolate (semplificato)
-      stats: Object.fromEntries(Object.entries(basic.baseStats).map(([s, v]) => [s, Math.floor((v as number) * (1 + 0.03 * pk.level))])) as any
+      // Statistiche ricalcolate con formula ufficiale
+      stats: calculateStats(pk.level, basic.baseStats, pk.ivs, pk.evs, pk.nature)
     });
 
     handleNextEval();
@@ -593,7 +589,7 @@ export default function BattlePlay() {
         });
       } else {
         const { damage, effectiveness } = calculateDamage(
-          { level: activeEnemy.level, stats: activeEnemy.stats, types: activeEnemy.types },
+          { level: activeEnemy.level, stats: activeEnemy.stats, types: activeEnemy.types, status: activeEnemy.status },
           { stats: playerPk.stats, types: playerPk.types },
           move,
           currentEnemyStages[move.category === 'special' ? 'spAtk' : 'attack' as keyof StatStages],
@@ -651,7 +647,7 @@ export default function BattlePlay() {
       handleEnemyTurn(enemyHp, playerPk.currentHp, enemyStages, playerStages);
     } else {
       const { damage, effectiveness } = calculateDamage(
-        { level: playerPk.level, stats: playerPk.stats, types: playerPk.types },
+        { level: playerPk.level, stats: playerPk.stats, types: playerPk.types, status: playerPk.status },
         { stats: activeEnemy.stats, types: activeEnemy.types },
         move,
         playerStages[move.category === 'special' ? 'spAtk' : 'attack' as keyof StatStages],
@@ -992,7 +988,7 @@ const StatBadge: React.FC<StatBadgeProps> = ({ stat, stage }) => {
             <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-200 mt-1">
                <motion.div 
                  initial={{ width: '0%' }}
-                 animate={{ width: `${((playerPk.exp || 0) / getExpToNextLevel(playerPk.level)) * 100}%` }}
+                 animate={{ width: `${((playerPk.exp || 0) / getExpToNextLevel(playerPk.level, playerPk.growthRate)) * 100}%` }}
                  className="h-full bg-pk-blue shadow-[0_0_5px_rgba(59,76,202,0.5)]"
                />
             </div>

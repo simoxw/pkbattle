@@ -4,7 +4,7 @@ import { ChevronLeft, Sparkles, Timer, Plus } from 'lucide-react';
 import { db } from '../lib/db';
 import { getPokemonSprite, getRecommendedMoves } from '../lib/pokemonUtils';
 import { type Pokemon } from '../types';
-
+import { calculateStats, NATURE_MODS } from '../lib/battleEngine';
 import BottomNav from '../components/BottomNav';
 
 export default function DailyCatch() {
@@ -82,6 +82,29 @@ export default function DailyCatch() {
 
     setLoading(true);
     const moves = await getRecommendedMoves(pk.id);
+    
+    // Genera natura casuale (solo nomi italiani per coerenza UI)
+    const italianNatures = [
+      'Schiva', 'Audace', 'Decisa', 'Birbona', 'Sicura', 'Placida', 'Scaltra', 'Fiacca',
+      'Timida', 'Lesta', 'Allegra', 'Ingenua', 'Modesta', 'Mite', 'Quieta', 'Ardente',
+      'Calma', 'Gentile', 'Vivace', 'Cauta', 'Docile', 'Seria', 'Ritrosa', 'Ardita', 'Furba'
+    ];
+    const nature = italianNatures[Math.floor(Math.random() * italianNatures.length)];
+    const growthRates = ['fast', 'medium', 'medium-slow', 'slow'];
+    const growthRate = growthRates[Math.floor(Math.random() * growthRates.length)];
+
+    const ivs = { 
+      hp: Math.floor(Math.random() * 32), 
+      attack: Math.floor(Math.random() * 32), 
+      defense: Math.floor(Math.random() * 32), 
+      spAtk: Math.floor(Math.random() * 32), 
+      spDef: Math.floor(Math.random() * 32), 
+      speed: Math.floor(Math.random() * 32) 
+    };
+    const evs = { hp: 0, attack: 0, defense: 0, spAtk: 0, spDef: 0, speed: 0 };
+
+    // Calcola statistiche reali
+    const realStats = calculateStats(pk.level, pk.stats, ivs, evs, nature);
 
     // Crea istanza pokemon reale
     const newPk: Partial<Pokemon> = {
@@ -91,24 +114,17 @@ export default function DailyCatch() {
       level: pk.level,
       exp: 0,
       types: pk.types,
-      nature: 'Decisa',
-      ability: 'Aiutofuoco',
+      nature,
+      ability: 'Abilità Base', // Placeholder
       baseStats: pk.stats || { hp: 50, attack: 50, defense: 50, spAtk: 50, spDef: 50, speed: 50 },
-      stats: pk.stats || { hp: 100, attack: 50, defense: 50, spAtk: 50, spDef: 50, speed: 50 },
-      ivs: { 
-        hp: Math.floor(Math.random() * 32), 
-        attack: Math.floor(Math.random() * 32), 
-        defense: Math.floor(Math.random() * 32), 
-        spAtk: Math.floor(Math.random() * 32), 
-        spDef: Math.floor(Math.random() * 32), 
-        speed: Math.floor(Math.random() * 32) 
-      },
-      evs: { hp: 0, attack: 0, defense: 0, spAtk: 0, spDef: 0, speed: 0 },
+      stats: realStats,
+      ivs,
+      evs,
       moves: moves,
-      currentHp: pk.stats ? pk.stats.hp : 100,
+      currentHp: realStats.hp,
       isShiny: pk.isShiny,
       caughtAt: Date.now(),
-      growthRate: 'medium'
+      growthRate: growthRate
     };
 
     await db.box.add(newPk as Pokemon);

@@ -5,27 +5,32 @@ import { ChevronLeft, Share2, Trash2, Heart, Award, Zap, Shield, Swords as Attac
 import { db } from '../lib/db';
 import { type Pokemon } from '../types';
 import { getPokemonSprite, formatTypeName, getTypeColor, getTypeBadgeClass, getExpToNextLevel } from '../lib/pokemonUtils';
+import { calculateDamage, calculateStats, NATURE_MODS } from '../lib/battleEngine';
 import { encodePokemon } from '../lib/serialization';
 import BottomNav from '../components/BottomNav';
 
-const StatBar = ({ label, value, max = 255, color, icon: Icon, iv, ev }: any) => (
+const StatBar = ({ label, value, max = 255, color, icon: Icon, iv, ev, modifier }: any) => (
   <div className="space-y-1">
     <div className="flex justify-between items-end px-1">
        <div className="flex items-center gap-1.5 min-w-[70px]">
-          <Icon size={12} className="text-slate-400" />
-          <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">{label}</span>
+          <Icon size={12} className={modifier === 'up' ? 'text-rose-500' : modifier === 'down' ? 'text-blue-500' : 'text-slate-400'} />
+          <span className={`text-[10px] font-black uppercase tracking-tighter ${modifier === 'up' ? 'text-rose-600' : modifier === 'down' ? 'text-blue-600' : 'text-slate-400'}`}>
+            {label}
+            {modifier === 'up' && <span className="ml-0.5 text-rose-500">+</span>}
+            {modifier === 'down' && <span className="ml-0.5 text-blue-500">-</span>}
+          </span>
        </div>
        <div className="flex-1 px-4 flex justify-end gap-3 mr-2">
           {iv !== undefined && <span className="text-[9px] font-black text-pk-blue/60 tabular-nums">IV {iv.toString().padStart(2, '0')}</span>}
           {ev !== undefined && <span className="text-[9px] font-black text-emerald-500/60 tabular-nums">EV {ev.toString().padStart(3, '0')}</span>}
        </div>
-       <span className="text-xs font-black text-pk-dark tabular-nums w-[25px] text-right">{value}</span>
+       <span className={`text-xs font-black tabular-nums w-[25px] text-right ${modifier === 'up' ? 'text-rose-600' : modifier === 'down' ? 'text-blue-600' : 'text-pk-dark'}`}>{value}</span>
     </div>
     <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-50">
        <motion.div 
          initial={{ width: 0 }}
          animate={{ width: `${Math.min(100, (value / max) * 100)}%` }}
-         className={`h-full ${color} transition-all duration-500 rounded-full shadow-inner`}
+         className={`h-full ${modifier === 'up' ? 'bg-rose-500' : modifier === 'down' ? 'bg-blue-500' : color} transition-all duration-500 rounded-full shadow-inner`}
        />
     </div>
   </div>
@@ -75,6 +80,8 @@ export default function BoxDetail() {
       navigate('/box');
     }
   };
+
+  const natureMod = NATURE_MODS[pokemon.nature];
 
   return (
     <div className="flex flex-col h-screen bg-pk-light overflow-hidden font-sans">
@@ -128,19 +135,27 @@ export default function BoxDetail() {
                    <span className="bg-pk-dark text-pk-gold text-[10px] font-black px-4 py-1 rounded-full uppercase shadow-lg tracking-widest border border-pk-gold/20">Livello {pokemon.level}</span>
                  </div>
                  <div className="h-6 w-px bg-slate-200"></div>
-                 <span className="text-slate-400 font-extrabold text-[11px] uppercase tracking-wider italic">{pokemon.nature} Nature</span>
+                 <div className="flex flex-col">
+                   <span className="text-slate-400 font-extrabold text-[11px] uppercase tracking-wider italic">Natura {pokemon.nature}</span>
+                   {natureMod && (
+                     <div className="flex gap-2 justify-center items-center">
+                        <span className="text-[8px] font-black text-rose-500 uppercase">+{natureMod.up.replace('spAtk', 'SpA').replace('spDef', 'SpD')}</span>
+                        <span className="text-[8px] font-black text-blue-500 uppercase">-{natureMod.down.replace('spAtk', 'SpA').replace('spDef', 'SpD')}</span>
+                     </div>
+                   )}
+                 </div>
                </div>
                
                {/* EXP Bar */}
                <div className="w-full space-y-1">
                  <div className="flex justify-between items-center px-1">
-                   <span className="text-[8px] font-black uppercase text-slate-400">Punti Esperienza</span>
-                   <span className="text-[9px] font-black text-pk-blue tabular-nums">{Math.floor(pokemon.exp || 0).toLocaleString()} / {getExpToNextLevel(pokemon.level).toLocaleString()}</span>
+                   <span className="text-[8px] font-black uppercase text-slate-400">Punti Esperienza ({pokemon.growthRate || 'medium'})</span>
+                   <span className="text-[9px] font-black text-pk-blue tabular-nums">{Math.floor(pokemon.exp || 0).toLocaleString()} / {getExpToNextLevel(pokemon.level, pokemon.growthRate).toLocaleString()}</span>
                  </div>
                  <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden shadow-inner border border-white/50">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, ((pokemon.exp || 0) / getExpToNextLevel(pokemon.level)) * 100)}%` }}
+                      animate={{ width: `${Math.min(100, ((pokemon.exp || 0) / getExpToNextLevel(pokemon.level, pokemon.growthRate)) * 100)}%` }}
                       className="h-full bg-pk-blue shadow-[0_0_8px_rgba(59,76,202,0.3)] transition-all duration-700"
                     />
                  </div>
@@ -163,11 +178,11 @@ export default function BoxDetail() {
                
                <div className="grid grid-cols-1 gap-5">
                   <StatBar label="PS" value={pokemon.stats?.hp || 0} iv={pokemon.ivs?.hp} ev={pokemon.evs?.hp} color="bg-green-500 shadow-green-200" icon={Heart} />
-                  <StatBar label="Attacco" value={pokemon.stats?.attack || 0} iv={pokemon.ivs?.attack} ev={pokemon.evs?.attack} color="bg-red-500 shadow-red-200" icon={AttackIcon} />
-                  <StatBar label="Difesa" value={pokemon.stats?.defense || 0} iv={pokemon.ivs?.defense} ev={pokemon.evs?.defense} color="bg-orange-500 shadow-orange-200" icon={Shield} />
-                  <StatBar label="Attacco Sp." value={pokemon.stats?.spAtk || 0} iv={pokemon.ivs?.spAtk} ev={pokemon.evs?.spAtk} color="bg-blue-500 shadow-blue-200" icon={Zap} />
-                  <StatBar label="Difesa Sp." value={pokemon.stats?.spDef || 0} iv={pokemon.ivs?.spDef} ev={pokemon.evs?.spDef} color="bg-purple-500 shadow-purple-200" icon={Shield} />
-                  <StatBar label="Velocità" value={pokemon.stats?.speed || 0} iv={pokemon.ivs?.speed} ev={pokemon.evs?.speed} color="bg-pink-500 shadow-pink-200" icon={Wind} />
+                  <StatBar label="Attacco" value={pokemon.stats?.attack || 0} iv={pokemon.ivs?.attack} ev={pokemon.evs?.attack} color="bg-red-500 shadow-red-200" icon={AttackIcon} modifier={natureMod?.up === 'attack' ? 'up' : natureMod?.down === 'attack' ? 'down' : null} />
+                  <StatBar label="Difesa" value={pokemon.stats?.defense || 0} iv={pokemon.ivs?.defense} ev={pokemon.evs?.defense} color="bg-orange-500 shadow-orange-200" icon={Shield} modifier={natureMod?.up === 'defense' ? 'up' : natureMod?.down === 'defense' ? 'down' : null} />
+                  <StatBar label="Attacco Sp." value={pokemon.stats?.spAtk || 0} iv={pokemon.ivs?.spAtk} ev={pokemon.evs?.spAtk} color="bg-blue-500 shadow-blue-200" icon={Zap} modifier={natureMod?.up === 'spAtk' ? 'up' : natureMod?.down === 'spAtk' ? 'down' : null} />
+                  <StatBar label="Difesa Sp." value={pokemon.stats?.spDef || 0} iv={pokemon.ivs?.spDef} ev={pokemon.evs?.spDef} color="bg-purple-500 shadow-purple-200" icon={Shield} modifier={natureMod?.up === 'spDef' ? 'up' : natureMod?.down === 'spDef' ? 'down' : null} />
+                  <StatBar label="Velocità" value={pokemon.stats?.speed || 0} iv={pokemon.ivs?.speed} ev={pokemon.evs?.speed} color="bg-pink-500 shadow-pink-200" icon={Wind} modifier={natureMod?.up === 'speed' ? 'up' : natureMod?.down === 'speed' ? 'down' : null} />
                </div>
             </div>
 
