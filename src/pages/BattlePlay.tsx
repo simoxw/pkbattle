@@ -60,7 +60,7 @@ const TypewriterLog = ({ messages }: { messages: BattleMessage[] }) => {
         setDisplayedLines(prev => [...prev, { text: '', type: msg.type }]);
       }
 
-      const speed = 1; // Istantaneo
+      const speed = 5; // Leggermente più lento
       if (charIndex < msg.text.length) {
         const char = msg.text[charIndex];
         const timeout = setTimeout(() => {
@@ -77,7 +77,7 @@ const TypewriterLog = ({ messages }: { messages: BattleMessage[] }) => {
         const timeout = setTimeout(() => {
           setMsgIndex(prev => prev + 1);
           setCharIndex(0);
-        }, 50); // Pausa minima tra messaggi
+        }, 150); // Pausa più umana tra messaggi
         return () => clearTimeout(timeout);
       }
     }
@@ -248,13 +248,14 @@ export default function BattlePlay() {
     addCoins(gainedCoins);
     updateRankStats(1, 0, gainedRank);
 
+    setBattleState('victory'); // Mostra subito la schermata di vittoria
+
     const expResults: any[] = [];
     const evaluationEvents: EvaluationEvent[] = [];
     const updatedTeam = [...playerTeam];
 
-    // Distribuzione EXP
-    for (let i = 0; i < updatedTeam.length; i++) {
-      const pk = updatedTeam[i];
+    // Calcolo EXP parallelo per velocizzare
+    const processPromises = updatedTeam.map(async (pk, i) => {
       if (pk.currentHp > 0 || expShareEnabled) {
         const totalEnemyExp = enemyTeam.reduce((sum, e) => sum + calculateExpGain(e), 0);
         const shareFactor = pk.currentHp > 0 ? (expShareEnabled ? 0.75 : 1) : 0.5;
@@ -264,33 +265,37 @@ export default function BattlePlay() {
         let newLevel = pk.level;
         let leveledUp = false;
 
+        const levelUpEvents: EvaluationEvent[] = [];
+
         while (newExp >= getExpToNextLevel(newLevel, pk.growthRate) && newLevel < 100) {
           newExp -= getExpToNextLevel(newLevel, pk.growthRate);
-          const oldLevel = newLevel;
           newLevel++;
           leveledUp = true;
           
-          // Check for new moves at each level up
-          const newMove = await getMoveAtLevel(pk.pokemonId, newLevel);
-          if (newMove && !pk.moves.find(m => m.id === newMove.id)) {
-            evaluationEvents.push({ type: 'new-move', pokemon: { ...pk, level: newLevel }, data: newMove });
+          // Check for new moves and evolution
+          const [newMove, evo] = await Promise.all([
+            getMoveAtLevel(pk.pokemonId, newLevel),
+            getEvolutionData(pk.pokemonId)
+          ]);
+
+          if (newMove) {
+            const alreadyKnown = pk.moves.some(m => m.id === newMove.id);
+            const alreadyInQueue = levelUpEvents.some(e => e.type === 'new-move' && e.data.id === newMove.id);
+            
+            if (!alreadyKnown && !alreadyInQueue) {
+              levelUpEvents.push({ type: 'new-move', pokemon: { ...pk, level: newLevel }, data: newMove });
+            }
           }
 
-          // Check for evolution
-          const evo = await getEvolutionData(pk.pokemonId);
           if (evo && newLevel >= evo.minLevel) {
-            evaluationEvents.push({ type: 'evolution', pokemon: { ...pk, level: newLevel }, data: evo });
+            levelUpEvents.push({ type: 'evolution', pokemon: { ...pk, level: newLevel }, data: evo });
           }
         }
 
         pk.exp = newExp;
-        const levelDiff = newLevel - pk.level;
         if (leveledUp) {
-          evaluationEvents.unshift({ type: 'level-up', pokemon: { ...pk, level: newLevel } });
-        }
-        pk.level = newLevel;
-
-        if (leveledUp) {
+          levelUpEvents.unshift({ type: 'level-up', pokemon: { ...pk, level: newLevel } });
+          pk.level = newLevel;
           pk.stats = calculateStats(pk.level, pk.baseStats, pk.ivs, pk.evs, pk.nature);
           pk.currentHp = pk.stats.hp; 
         }
@@ -303,16 +308,15 @@ export default function BattlePlay() {
         });
 
         expResults.push({ pkId: pk.id, name: pk.name, gain, levelUp: leveledUp });
+        evaluationEvents.push(...levelUpEvents);
       }
-    }
+    });
 
+    await Promise.all(processPromises);
     setRewards({ coins: gainedCoins, rank: gainedRank, exp: expResults });
     if (evaluationEvents.length > 0) {
       setEvaluationQueue(evaluationEvents);
       setCurrentEvalIndex(0);
-      setBattleState('victory');
-    } else {
-      setBattleState('victory');
     }
   };
 
@@ -526,33 +530,78 @@ export default function BattlePlay() {
         }
       }
 
-      // Genera nemico Default
-      setEnemyTeam([
-        { 
-          id: 'v1', pokemonId: 3, name: 'Venusaur', level: 46, currentHp: 160, maxHp: 160, fainted: false,
-          types: ['grass', 'poison'],
-          stats: { hp: 160, attack: 110, defense: 110, spAtk: 130, spDef: 130, speed: 100 },
-          moves: [
-            { name: 'Fogliamagica', type: 'grass', power: 60, category: 'special' },
-            { name: 'Azione', type: 'normal', power: 40, category: 'physical' },
-            { name: 'Colpo Coda', type: 'normal', power: 0, category: 'status', stat_changes: [{ stat: 'defense', change: -1, target: 'opponent' }] }
-          ]
-        },
-        { 
-          id: 'b1', pokemonId: 9, name: 'Blastoise', level: 48, currentHp: 170, maxHp: 170, fainted: false,
-          types: ['water'],
-          stats: { hp: 170, attack: 120, defense: 140, spAtk: 120, spDef: 140, speed: 110 },
-          moves: [
-            { name: 'Idropompa', type: 'water', power: 110, category: 'special' },
-            { name: 'Rafforzamento', type: 'normal', power: 0, category: 'status', stat_changes: [{ stat: 'defense', change: 1, target: 'self' }] }
-          ]
-        }
-      ]);
+      // Genera nemici casuali (4 Pokémon)
+      const avgLevel = teamPk.reduce((sum, p) => sum + p.level, 0) / teamPk.length;
+      const enemyLevel = Math.max(5, Math.floor(avgLevel));
       
-      setEnemyHp(160);
+      const randomIds = Array.from({ length: 4 }, () => Math.floor(Math.random() * 1025) + 1);
+      const enemiesData = await Promise.all(randomIds.map(id => 
+        fetch(`https://pokeapi.co/api/v2/pokemon/${id}`).then(r => r.json())
+      ));
+
+      const enemies = await Promise.all(enemiesData.map(async (data) => {
+        const baseStats = {
+          hp: data.stats.find((s: any) => s.stat.name === 'hp').base_stat,
+          attack: data.stats.find((s: any) => s.stat.name === 'attack').base_stat,
+          defense: data.stats.find((s: any) => s.stat.name === 'defense').base_stat,
+          spAtk: data.stats.find((s: any) => s.stat.name === 'special-attack').base_stat,
+          spDef: data.stats.find((s: any) => s.stat.name === 'special-defense').base_stat,
+          speed: data.stats.find((s: any) => s.stat.name === 'speed').base_stat,
+        };
+
+        const stats = {
+          hp: Math.floor((2 * baseStats.hp + 31 + 63) * enemyLevel / 100) + enemyLevel + 10,
+          attack: Math.floor((2 * baseStats.attack + 31 + 63) * enemyLevel / 100) + 5,
+          defense: Math.floor((2 * baseStats.defense + 31 + 63) * enemyLevel / 100) + 5,
+          spAtk: Math.floor((2 * baseStats.spAtk + 31 + 63) * enemyLevel / 100) + 5,
+          spDef: Math.floor((2 * baseStats.spDef + 31 + 63) * enemyLevel / 100) + 5,
+          speed: Math.floor((2 * baseStats.speed + 31 + 63) * enemyLevel / 100) + 5,
+        };
+
+        const levelUpMoves = data.moves
+          .filter((m: any) => m.version_group_details.some((d: any) => 
+            d.move_learn_method.name === 'level-up' && d.level_learned_at <= enemyLevel
+          ))
+          .slice(-4);
+
+        if (levelUpMoves.length === 0) levelUpMoves.push({ move: { name: 'tackle', url: 'https://pokeapi.co/api/v2/move/33/' } });
+
+        const moves = await Promise.all(levelUpMoves.map(async (me: any) => {
+          const mRes = await fetch(me.move.url);
+          const m = await mRes.json();
+          return {
+            id: m.name,
+            name: m.names.find((n: any) => n.language.name === 'it')?.name || m.name.charAt(0).toUpperCase() + m.name.slice(1),
+            type: m.type.name,
+            power: m.power || 0,
+            category: (m.damage_class.name === 'status' ? 'status' : (m.damage_class.name === 'special' ? 'special' : 'physical')) as 'physical' | 'special' | 'status',
+            accuracy: m.accuracy || 100,
+            pp: m.pp,
+            maxPp: m.pp,
+            priority: m.priority || 0,
+            description: m.flavor_text_entries?.find((f: any) => f.language.name === 'it')?.flavor_text || 'Descrizione non disponibile.',
+          };
+        }));
+
+        return {
+          id: `random-${data.id}-${Math.random()}`,
+          pokemonId: data.id,
+          name: data.name.charAt(0).toUpperCase() + data.name.slice(1),
+          level: enemyLevel,
+          currentHp: stats.hp,
+          maxHp: stats.hp,
+          fainted: false,
+          types: data.types.map((t: any) => t.type.name),
+          stats,
+          moves
+        };
+      }));
+
+      setEnemyTeam(enemies);
+      setEnemyHp(enemies[0].maxHp);
       setMessages([
         { text: "Un Allenatore desidera lottare!", type: 'normal' },
-        { text: `L'Allenatore manda in campo Venusaur!`, type: 'normal' },
+        { text: `L'Allenatore manda in campo ${enemies[0].name}!`, type: 'normal' },
         { text: `Vai, ${teamPk[0].name}!`, type: 'normal' },
       ]);
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);

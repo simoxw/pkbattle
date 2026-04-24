@@ -13,7 +13,11 @@ export const getRecommendedMoves = async (pokemonId: number | string) => {
     
     const movesData = await Promise.all(movesPromises);
     
-    return movesData
+    const uniqueMoves = Array.from(
+      new Map(movesData.map(m => [m.name, m])).values()
+    );
+
+    return uniqueMoves
       .filter(m => m.power !== null || m.meta?.category?.name === 'net-good-stats')
       .slice(0, 4)
       .map(m => ({

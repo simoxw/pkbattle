@@ -43,9 +43,9 @@ Questo documento fornisce una panoramica della struttura delle cartelle e dei fi
 - **`minimalData.json`**: Dataset iniziale di Pokémon per il seeding del database locale.
 
 ### `src/lib/`
-- **`battleEngine.ts`**: Motore di calcolo del danno (formule Gen 9) e applicazione degli effetti base. Unificato per tutte le modalità di battaglia.
-- **`breedingUtils.ts`**: Logica per l'accoppiamento dei Pokémon e generazione di uova.
-- **`db.ts`**: Configurazione di IndexedDB tramite Dexie.js e logica di seeding iniziale.
+- **`battleEngine.ts`**: Motore di calcolo del danno (formule Gen 9 ufficiali), gestione delle Nature (25 tipi con localizzazione IT) e applicazione dei modificatori di statistica (Stages).
+- **`breedingUtils.ts`**: Logica per l'accoppiamento dei Pokémon e generazione di uova con passaggio di IVs.
+- **`db.ts`**: Configurazione di IndexedDB tramite Dexie.js. Include logica di auto-repair per dati corrotti e seeding iniziale sincronizzato con il motore statistiche.
 - **`evolutionUtils.ts`**: Gestione dei requisiti e dei processi di evoluzione.
 - **`pokeApi.ts`**: Client per PokéAPI con sistema di caching integrato su IndexedDB.
 - **`pokemonUtils.ts`**: Punto di accesso centralizzato per le utility Pokémon (re-export dai moduli in `lib/pokemon/`).
@@ -54,17 +54,17 @@ Questo documento fornisce una panoramica della struttura delle cartelle e dei fi
 
 #### `src/lib/pokemon/`
 - **`sprites.ts`**: Generazione URL per sprite e artwork.
-- **`stats.ts`**: Calcolo statistiche e crescita esperienza.
+- **`stats.ts`**: Calcolo statistiche ufficiali (Level, Base, IV, EV, Nature) e gestione delle 6 curve di crescita (Growth Rates).
 - **`evolution.ts`**: Logica di recupero dati evolutivi.
 - **`moves.ts`**: Recupero mosse consigliate e per livello.
 - **`ui.ts`**: Utility per badge, colori e formattazione tipi.
 
 ### `src/pages/`
 - **`Backpack.tsx`**: Visualizzazione dell'inventario degli oggetti del giocatore.
-- **`BattleHub.tsx`**: Centro per la selezione delle modalità di battaglia.
-- **`BattlePlay.tsx`**: Schermata attiva del combattimento tra Pokémon.
+- **`BattleHub.tsx`**: Centro per la selezione delle modalità di battaglia (Sfida Trainer, Lotta Casuale, Inserimento Codice).
+- **`BattlePlay.tsx`**: Schermata di combattimento. Gestisce turni, IA nemica, logica di fine lotta, distribuzione EXP e apprendimento mosse.
 - **`Box.tsx`**: Visualizzazione dei Pokémon catturati nel deposito.
-- **`BoxDetail.tsx`**: Dettagli specifici di un singolo Pokémon nel Box.
+- **`BoxDetail.tsx`**: Dettagli avanzati di un Pokémon: Statistiche reali vs Base, IV/EV, Nature e barra EXP dinamica.
 - **`BoxImport.tsx`**: Pagina per l'importazione di dati esterni nel Box.
 - **`DailyCatch.tsx`**: Meccanica di cattura giornaliera.
 - **`Home.tsx`**: Dashboard principale dell'utente.
@@ -87,4 +87,4 @@ Questo documento fornisce una panoramica della struttura delle cartelle e dei fi
 - **`store.types.ts`**: Definizioni per le slice di Zustand.
 
 ---
-*Ultimo aggiornamento: 2026-04-21*
+*Ultimo aggiornamento: 2026-04-24*
