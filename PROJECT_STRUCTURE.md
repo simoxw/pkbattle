@@ -1,84 +1,90 @@
-# Project Structure
+# Struttura del Progetto: Pokémon Battle Arena PWA
 
-Questo file descrive la struttura del progetto e il ruolo di ogni file principale.
+Questo documento fornisce una panoramica della struttura delle cartelle e dei file del progetto, descrivendo il contenuto e lo scopo di ciascuno.
 
-```
-pkbattle/
-├── README.md
-├── PROJECT_STRUCTURE.md
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-├── index.html
-├── metadata.json
+## Albero delle Cartelle
+
+```text
+/
+├── public/                # Asset statici pubblici
 ├── src/
-│   ├── main.tsx
-│   ├── App.tsx
-│   ├── index.css
-│   ├── constants.ts
-│   ├── types.ts
-│   ├── store/
-│   │   └── gameStore.ts
-│   ├── data/
-│   │   └── trainers.ts
-│   └── services/
-│       ├── api.ts
-│       └── base64.ts
+│   ├── components/        # Componenti React riutilizzabili
+│   ├── constants/         # Costanti globali e dati statici
+│   ├── data/              # Dati JSON iniziali o mock
+│   ├── lib/               # Logica di core, utility e servizi
+│   │   └── pokemon/       # Moduli specifici per la logica Pokémon
+│   ├── pages/             # Componenti pagina (Route)
+│   ├── store/             # Gestione dello stato globale (Zustand)
+│   │   └── slices/        # Slice modulari dello store
+│   ├── types/             # Definizioni dei tipi TypeScript
+│   ├── App.tsx            # Componente principale e routing
+│   ├── index.css          # Stili globali (Tailwind CSS)
+│   └── main.tsx           # Entry point dell'applicazione React
+├── .env.example           # Esempio di variabili d'ambiente
+├── .gitignore             # File da ignorare in Git
+├── README.md              # Documentazione generale del progetto
+├── index.html             # Template HTML principale
+├── metadata.json          # Metadati dell'applicazione
+├── package.json           # Dipendenze e script NPM
+├── tailwind.config.ts     # Configurazione di Tailwind CSS
+├── tsconfig.json          # Configurazione di TypeScript
+└── vite.config.ts         # Configurazione di Vite
 ```
 
-## Descrizione dei file
+## Descrizione dei File
 
-- `README.md`
-  - Istruzioni per installare, eseguire e pubblicare il progetto in locale.
+### `src/components/`
+- **`BottomNav.tsx`**: Barra di navigazione inferiore per il passaggio tra le sezioni principali della PWA.
 
-- `PROJECT_STRUCTURE.md`
-  - Documentazione del progetto e memoria strutturale per sviluppo futuro.
+### `src/constants/`
+- **`items.ts`**: Elenco e proprietà degli oggetti disponibili nel gioco (es. Poké Ball, Pozioni).
 
-- `package.json`
-  - Definisce dipendenze, script di sviluppo e build.
+### `src/data/`
+- **`minimalData.json`**: Dataset iniziale di Pokémon per il seeding del database locale.
 
-- `tsconfig.json`
-  - Configurazione TypeScript del progetto.
+### `src/lib/`
+- **`battleEngine.ts`**: Motore di calcolo del danno (formule Gen 9) e applicazione degli effetti base. Unificato per tutte le modalità di battaglia.
+- **`breedingUtils.ts`**: Logica per l'accoppiamento dei Pokémon e generazione di uova.
+- **`db.ts`**: Configurazione di IndexedDB tramite Dexie.js e logica di seeding iniziale.
+- **`evolutionUtils.ts`**: Gestione dei requisiti e dei processi di evoluzione.
+- **`pokeApi.ts`**: Client per PokéAPI con sistema di caching integrato su IndexedDB.
+- **`pokemonUtils.ts`**: Punto di accesso centralizzato per le utility Pokémon (re-export dai moduli in `lib/pokemon/`).
+- **`serialization.ts`**: Funzioni per l'importazione ed esportazione dei dati di gioco.
+- **`typeChart.ts`**: Matrice delle debolezze e resistenze tra i tipi Pokémon.
 
-- `vite.config.ts`
-  - Configurazione di Vite, compreso il supporto PWA e il base path relativo per build statiche.
+#### `src/lib/pokemon/`
+- **`sprites.ts`**: Generazione URL per sprite e artwork.
+- **`stats.ts`**: Calcolo statistiche e crescita esperienza.
+- **`evolution.ts`**: Logica di recupero dati evolutivi.
+- **`moves.ts`**: Recupero mosse consigliate e per livello.
+- **`ui.ts`**: Utility per badge, colori e formattazione tipi.
 
-- `index.html`
-  - Pagina HTML principale usata da Vite come template per l'app React.
+### `src/pages/`
+- **`Backpack.tsx`**: Visualizzazione dell'inventario degli oggetti del giocatore.
+- **`BattleHub.tsx`**: Centro per la selezione delle modalità di battaglia.
+- **`BattlePlay.tsx`**: Schermata attiva del combattimento tra Pokémon.
+- **`Box.tsx`**: Visualizzazione dei Pokémon catturati nel deposito.
+- **`BoxDetail.tsx`**: Dettagli specifici di un singolo Pokémon nel Box.
+- **`BoxImport.tsx`**: Pagina per l'importazione di dati esterni nel Box.
+- **`DailyCatch.tsx`**: Meccanica di cattura giornaliera.
+- **`Home.tsx`**: Dashboard principale dell'utente.
+- **`Pokedex.tsx`**: Enciclopedia dei Pokémon incontrati e catturati.
+- **`Settings.tsx`**: Impostazioni dell'applicazione.
+- **`Shop.tsx`**: Negozio per l'acquisto di oggetti tramite monete di gioco.
+- **`Social.tsx`**: Funzionalità social.
+- **`Stub.tsx`**: Pagina segnaposto per funzionalità non ancora implementate.
+- **`Teams.tsx`**: Gestione e composizione delle squadre di Pokémon.
 
-- `metadata.json`
-  - File iniziale ereditato da AI Studio; può rimanere come riferimento ma non è necessario per l'app locale.
+### `src/store/`
+- **`useStore.ts`**: Store principale che combina le slice modulari.
+- **`slices/`**: Contiene `createUserSlice.ts`, `createInventorySlice.ts` e `createSettingsSlice.ts`.
 
-- `src/store/gameStore.ts`
-  - Store Zustand che persiste il box dei Pokémon e lo sincronizza con IndexedDB.
+### `src/types/`
+- **`index.ts`**: Entry point che esporta tutti i tipi.
+- **`pokemon.types.ts`**: Tipi relativi a Pokémon, Statistiche e Mosse.
+- **`team.types.ts`**: Tipi relativi alle squadre.
+- **`masterData.types.ts`**: Tipi per i dati di riferimento.
+- **`store.types.ts`**: Definizioni per le slice di Zustand.
 
-- `src/main.tsx`
-  - Entry point React che monta l'app in `#root`.
-
-- `src/App.tsx`
-  - Componente principale dell'app.
-  - Gestisce lo stato della battaglia, le schermate del menu e l'interfaccia utente.
-  - Ora supporta layout a tutta altezza su schermi mobili e si adatta in orizzontale/verticale.
-
-- `src/index.css`
-  - Stili globali e configurazione Tailwind.
-  - Aggiunge il supporto a layout a schermo intero e stili di base.
-
-- `src/constants.ts`
-  - Palette colori, helper e costanti utili al gioco.
-
-- `src/types.ts`
-  - Tipi TypeScript per Pokemon, mosse, allenatori e stato di battaglia.
-
-- `src/data/trainers.ts`
-  - Dati degli allenatori e preset di sfide.
-
-- `src/services/api.ts`
-  - Funzioni per caricare i dati dei Pokémon e calcolare il danno durante le battaglie.
-
-- `src/services/base64.ts`
-  - Codifica e decodifica del team per import/export.
-
-- `dist/`
-  - Output generato da Vite al momento del build.
-
+---
+*Ultimo aggiornamento: 2026-04-21*

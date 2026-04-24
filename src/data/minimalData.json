@@ -1,0 +1,30 @@
+{
+  "pokemon": [
+    {
+      "id": 1,
+      "pokemonId": 1,
+      "name": "Bulbasaur",
+      "types": ["grass", "poison"],
+      "baseStats": { "hp": 45, "attack": 49, "defense": 49, "spAtk": 65, "spDef": 65, "speed": 45 },
+      "growthRate": "medium-slow"
+    },
+    {
+      "id": 4,
+      "pokemonId": 4,
+      "name": "Charmander",
+      "types": ["fire"],
+      "baseStats": { "hp": 39, "attack": 52, "defense": 43, "spAtk": 60, "spDef": 50, "speed": 65 },
+      "growthRate": "medium-slow"
+    },
+    {
+      "id": 7,
+      "pokemonId": 7,
+      "name": "Squirtle",
+      "types": ["water"],
+      "baseStats": { "hp": 44, "attack": 48, "defense": 65, "spAtk": 50, "spDef": 64, "speed": 43 },
+      "growthRate": "medium-slow"
+    }
+  ],
+  "moves": [],
+  "items": []
+}

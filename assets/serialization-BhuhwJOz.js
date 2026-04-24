@@ -1,0 +1,1 @@
+const o=e=>btoa(unescape(encodeURIComponent(e))),n=e=>decodeURIComponent(escape(atob(e))),t=e=>o(JSON.stringify(e)),s=e=>JSON.parse(n(e)),c=e=>o(JSON.stringify(e)),a=e=>{try{return JSON.parse(n(e))}catch(r){return console.error("Error decoding team",r),null}};export{a,c as b,s as d,t as e};

@@ -1,30 +1,33 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Pokémon Battle Arena PWA
 
-# PokéBattle
+Un simulatore di battaglie Pokémon Gen 9 ultra-competitivo, 100% client-side, installabile come PWA.
 
-Questo progetto è ora configurato per essere sviluppato e testato in locale. Non si lavora più su Google AI Studio: la cartella locale è la base del progetto.
+## Funzionalità
+- 1025 Pokémon (Gen 1-9)
+- Mega Evoluzioni
+- Evoluzioni complete e Breeding
+- Battle Engine Gen 9 ufficiale
+- Modalità Offline (IndexedDB)
+- 100% in Italiano
 
-L'app adesso può usare Zustand + IndexedDB per persistere il box dei Pokémon in modo più solido e scalabile.
+## Prossimi Passi (Fase 2)
+- Implementazione Battle Engine
+- UI Home e Box
+- Sincronizzazione PokeAPI
 
-## Run Locally
+## Comandi
 
-**Prerequisiti:** Node.js
+```bash
+# Installazione dipendenze
+npm install
 
-1. Install dependencies:
-   `npm install`
-2. Avvia l'app:
-   `npm run dev`
+# Sviluppo locale
+npm run dev
 
-## Build e preparazione per GitHub
+# Build di produzione
+npm run build
 
-- Costruisci il progetto con:
-  `npm run build`
-- Dopo `npm run build`, copia tu stesso il contenuto di `dist/` nella cartella che vuoi usare per il deploy su GitHub.
-
-## Note
-
-- Il progetto ora usa `vite` in locale.
-- La cartella `dist/` è la build standard.
-- Non viene creata automaticamente nessuna cartella di staging per GitHub.
+# Deploy su GitHub Pages
+# 1. Crea la build
+# 2. Carica il contenuto della cartella /dist sul tuo repository (branch gh-pages o root)
+```

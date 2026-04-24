@@ -1,0 +1,1 @@
+const r=(t,e="static")=>e==="animated"?`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/${t}.gif`:e==="hd"?`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${t}.png`:`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${t}.png`;export{r as g};
